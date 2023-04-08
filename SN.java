@@ -7,9 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class SN {
-    private static final int MATCH = 1;
-    private static final int MISMATCH = -1;
-    private static final int GAP_OPEN = -10;
+    private static final float MATCH = 1;
+    private static final float MISMATCH = -4;
+    private static final float GAP_OPEN = -10;
     private static final float GAP_EXTEND = -0.5f;
 
     public static void main(String[] args) {
@@ -17,11 +17,6 @@ public class SN {
 
         try {
             Map<String, String> sequences = parseFasta(file);
-            // Check if there are exactly two sequences in the input file
-            if (sequences.size() != 2) {
-                System.err.println("The input FASTA file must contain exactly two sequences.");
-                System.exit(1);
-            }
 
             // Retrieve the two sequences from the parsed sequences map
             String[] ids = sequences.keySet().toArray(new String[0]);
@@ -81,8 +76,37 @@ public class SN {
         }
     }
 
+    public static void pa(float[][] arr) {
+        for (int i = 0; i < arr.length; i++) {
+            for (int j = 0; j < arr[i].length; j++) {
+                System.out.printf("%-15s", arr[i][j]);
+            }
+            System.out.println();
+        }
+    }
+
+    public static void rr(float[][] arr, int rowIndex, float value) {
+        for (int i = 1; i < arr[rowIndex].length; i++) {
+            if (rowIndex != 0) {
+                return;
+            }
+            arr[rowIndex][i] = value;
+        }
+    }
+
+    public static void rc(float[][] arr, int colIndex, float value) {
+        for (int i = 1; i < arr.length; i++) {
+            if (colIndex != 0) {
+                return;
+            }
+            arr[i][colIndex] = value;
+        }
+    }
+
     // Method to align two sequences using dynamic programming
+
     private static AlignmentResult alignSequences(String seq1, String seq2) {
+        float ni = Float.NEGATIVE_INFINITY;
         int m = seq1.length();
         int n = seq2.length();
         // Initialize the dynamic programming, gap1, and gap2 matrices
@@ -90,35 +114,55 @@ public class SN {
         float[][] gap1 = new float[m + 1][n + 1];
         float[][] gap2 = new float[m + 1][n + 1];
         // Initialize the first column of the dp and gap1 matrices
+        rr(dp, 0, ni);
+        rc(dp, 0, ni);
+        rr(gap1, 0, ni);
+        rc(gap2, 0, ni);
+        // in the first column at the ith row will start w gap penalty starting with row
+        // 1
         for (int i = 1; i <= m; i++) {
-            gap1[i][0] = GAP_OPEN + i * GAP_EXTEND;
-            dp[i][0] = gap1[i][0];
+            gap1[i][0] = GAP_OPEN + (i * GAP_EXTEND);
+            // dp[i][0] = gap1[i][0];
         }
         // Initialize the first row of the dp and gap2 matrices
         for (int j = 1; j <= n; j++) {
-            gap2[0][j] = GAP_OPEN + j * GAP_EXTEND;
-            dp[0][j] = gap2[0][j];
+            gap2[0][j] = GAP_OPEN + (j * GAP_EXTEND);
+            // dp[0][j] = gap2[0][j];
         }
+
         // Calculate the alignment scores using dynamic programming
+
         for (int i = 1; i <= m; i++) {
             for (int j = 1; j <= n; j++) {
                 // Check if the characters match or mismatch, and update the score accordingly
-                int match = seq1.charAt(i - 1) == seq2.charAt(j - 1) ? MATCH : MISMATCH;
-                dp[i][j] = dp[i - 1][j - 1] + match;
+                float match = seq1.charAt(i - 1) == seq2.charAt(j - 1) ? MATCH : MISMATCH;
+
+                // dp[i][j] = dp[i - 1][j - 1] + match;
                 // Update gap1 and gap2 matrices using the previously calculated values and
                 // penalties
-                gap1[i][j] = Math.max(dp[i - 1][j] + GAP_OPEN, gap1[i - 1][j] + GAP_EXTEND);
-                gap2[i][j] = Math.max(dp[i][j - 1] + GAP_OPEN, gap2[i][j - 1] + GAP_EXTEND);
+                gap1[i][j] = Math.max(GAP_OPEN + GAP_EXTEND + dp[i][j - 1],
+                        Math.max(GAP_EXTEND + gap2[i][j - 1], GAP_OPEN + GAP_EXTEND + gap1[i][j - 1]));
+                gap2[i][j] = Math.max(GAP_OPEN + GAP_EXTEND + dp[i - 1][j],
+                        Math.max(GAP_OPEN + GAP_EXTEND + gap2[i - 1][j], GAP_EXTEND + gap1[i - 1][j]));
                 // Update the current cell of the dp matrix with the maximum score from the
                 // three matrices
-                dp[i][j] = Math.max(dp[i][j], Math.max(gap1[i][j], gap2[i][j]));
+
+                dp[i][j] = Math.max(dp[i - 1][j - 1], Math.max(gap1[i][j], gap2[i][j])) + match;
             }
         }
+
+        pa(dp);
+        System.out.println("");
+        pa(gap1);
+        System.out.println("");
+        pa(gap2);
+        System.out.println("");
         // Create StringBuilders to store the aligned sequences
         StringBuilder alignedSeq1 = new StringBuilder();
         StringBuilder alignedSeq2 = new StringBuilder();
         // Traceback through the dp matrix to build the aligned sequences
         int i = m, j = n;
+        int score = 0;
         while (i > 0 || j > 0) {
             // If we're moving diagonally, append the corresponding characters to the
             // aligned sequences
@@ -140,13 +184,16 @@ public class SN {
                 alignedSeq1.append('_');
                 alignedSeq2.append(seq2.charAt(j - 1));
                 j--;
+
             }
         }
+
         // Reverse the aligned sequences to obtain the correct order
         alignedSeq1.reverse();
         alignedSeq2.reverse();
         // Return a new AlignmentResult object containing the aligned sequences and the
         // final penalty score
         return new AlignmentResult(alignedSeq1.toString(), alignedSeq2.toString(), dp[m][n]);
+
     }
-}    
+}
