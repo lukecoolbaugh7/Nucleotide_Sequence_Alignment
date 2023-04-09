@@ -1,10 +1,5 @@
-package Project2_github.Nucleotide_Sequence_Alignment;
-
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
+import java.io.*;
 
 public class SN {
     private static final float MATCH = 1;
@@ -13,7 +8,10 @@ public class SN {
     private static final float GAP_EXTEND = -0.5f;
 
     public static void main(String[] args) {
-        String file = "sequence.fasta";
+        Scanner scan = new Scanner(System.in); 
+        System.out.println("enter the name of the fasta file you wish to use"); 
+        String file = scan.nextLine(); 
+
 
         try {
             Map<String, String> sequences = parseFasta(file);
@@ -30,7 +28,6 @@ public class SN {
             System.out.println(">" + ids[0] + " vs " + ids[1]);
             System.out.println(result.sequence1);
             System.out.println(result.sequence2);
-            System.out.println("Total penalty: " + result.penalty);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -76,6 +73,7 @@ public class SN {
         }
     }
 
+    // printing array
     public static void pa(float[][] arr) {
         for (int i = 0; i < arr.length; i++) {
             for (int j = 0; j < arr[i].length; j++) {
@@ -85,6 +83,7 @@ public class SN {
         }
     }
 
+    // add val to whole row
     public static void rr(float[][] arr, int rowIndex, float value) {
         for (int i = 1; i < arr[rowIndex].length; i++) {
             if (rowIndex != 0) {
@@ -94,6 +93,7 @@ public class SN {
         }
     }
 
+    // add val to whole column
     public static void rc(float[][] arr, int colIndex, float value) {
         for (int i = 1; i < arr.length; i++) {
             if (colIndex != 0) {
@@ -120,14 +120,13 @@ public class SN {
         rc(gap2, 0, ni);
         // in the first column at the ith row will start w gap penalty starting with row
         // 1
+
         for (int i = 1; i <= m; i++) {
             gap1[i][0] = GAP_OPEN + (i * GAP_EXTEND);
-            // dp[i][0] = gap1[i][0];
         }
         // Initialize the first row of the dp and gap2 matrices
         for (int j = 1; j <= n; j++) {
             gap2[0][j] = GAP_OPEN + (j * GAP_EXTEND);
-            // dp[0][j] = gap2[0][j];
         }
 
         // Calculate the alignment scores using dynamic programming
@@ -140,51 +139,40 @@ public class SN {
                 // dp[i][j] = dp[i - 1][j - 1] + match;
                 // Update gap1 and gap2 matrices using the previously calculated values and
                 // penalties
-                gap1[i][j] = Math.max(GAP_OPEN + GAP_EXTEND + dp[i][j - 1],
-                        Math.max(GAP_EXTEND + gap2[i][j - 1], GAP_OPEN + GAP_EXTEND + gap1[i][j - 1]));
-                gap2[i][j] = Math.max(GAP_OPEN + GAP_EXTEND + dp[i - 1][j],
-                        Math.max(GAP_OPEN + GAP_EXTEND + gap2[i - 1][j], GAP_EXTEND + gap1[i - 1][j]));
+                gap1[i][j] = Math.max(GAP_OPEN + GAP_EXTEND + dp[i - 1][j],
+                        Math.max(GAP_EXTEND + gap1[i - 1][j], GAP_OPEN + GAP_EXTEND + gap2[i - 1][j]));
+                gap2[i][j] = Math.max(GAP_OPEN + GAP_EXTEND + dp[i][j - 1],
+                        Math.max(GAP_OPEN + GAP_EXTEND + gap1[i][j - 1], GAP_EXTEND + gap2[i][j - 1]));
                 // Update the current cell of the dp matrix with the maximum score from the
                 // three matrices
 
                 dp[i][j] = Math.max(dp[i - 1][j - 1], Math.max(gap1[i][j], gap2[i][j])) + match;
             }
         }
-
-        pa(dp);
-        System.out.println("");
-        pa(gap1);
-        System.out.println("");
-        pa(gap2);
-        System.out.println("");
         // Create StringBuilders to store the aligned sequences
         StringBuilder alignedSeq1 = new StringBuilder();
         StringBuilder alignedSeq2 = new StringBuilder();
         // Traceback through the dp matrix to build the aligned sequences
+
         int i = m, j = n;
-        int score = 0;
+
         while (i > 0 || j > 0) {
-            // If we're moving diagonally, append the corresponding characters to the
-            // aligned sequences
+            float maxVal = Math.max(dp[i][j], Math.max(gap1[i][j], gap2[i][j]));
+
             if (i > 0 && j > 0
-                    && dp[i][j] == dp[i - 1][j - 1] + (seq1.charAt(i - 1) == seq2.charAt(j - 1) ? MATCH : MISMATCH)) {
+                    && maxVal == dp[i - 1][j - 1] + (seq1.charAt(i - 1) == seq2.charAt(j - 1) ? MATCH : MISMATCH)) {
                 alignedSeq1.append(seq1.charAt(i - 1));
                 alignedSeq2.append(seq2.charAt(j - 1));
                 i--;
                 j--;
-                // If we're moving vertically, append the character from seq1 to alignedSeq1 and
-                // a gap to alignedSeq2
-            } else if (i > 0 && dp[i][j] == gap1[i][j]) {
+            } else if (i > 0 && maxVal == gap1[i][j]) {
                 alignedSeq1.append(seq1.charAt(i - 1));
                 alignedSeq2.append('_');
                 i--;
-                // If we're moving horizontally, append a gap to alignedSeq1 and the character
-                // from seq2 to alignedSeq2
             } else if (j > 0) {
                 alignedSeq1.append('_');
                 alignedSeq2.append(seq2.charAt(j - 1));
                 j--;
-
             }
         }
 
